@@ -59,7 +59,7 @@ namespace kitty
 /* checks hwhether the function is unate or not and when the function is negative unate in a variable return a function with only positive unates */
 
 
-ON_constraint.emplace_back(literals_off) ; 
+
             
             
 template<typename TT, typename = std::enable_if_t<is_complete_truth_table<TT>::value>>
