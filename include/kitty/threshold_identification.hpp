@@ -58,57 +58,7 @@ namespace kitty
   
 /* checks hwhether the function is unate or not and when the function is negative unate in a variable return a function with only positive unates */
 
-bool is_unate( const TT& tt )
-{
-  auto numvars = tt.num_vars();
 
-  for ( auto var = 0u; var < numvars; var++ )
-  {   
-    /* co-factor */
-    auto const tt1 = cofactor0( tt, var );
-    auto const tt2 = cofactor1( tt, var );
-      if ( binary_predicated( tt1, tt2, std::greater_equel<>()) || binary_predicated( tt1,tt2, std ::less_equal<>()) )
-      {  
-        if (binary_predicated( tt1,tt2, std ::less_equal<>() ) {
-            flip_inplace(tt, var)
-        } 
-        continue;
-        
-      }
-      else
-      {
-        return false;
-      }
-    
-  }
-  return true;
-}
-  
-/* ONSet and OFFset of the function */
-
-auto numvars = tt.num_vars();
-std:: vector<cube> ONset (isop(tt)); 
-std:: vector<cube> OFFset (isop(~tt)); 
-
-/* list of vectors for which we will apply the ON_contraint inequality ... >=T   */
-std:: vector<uint64_t> ON_constraint;
-
-/* list of vectors for which we will apply the OFF_contraint inequality ... >=T-1   */
-std:: vector<uint64_t> OFF_constraint; 
-
-for ( cube Cube : ONset){
-    std :: vector<uint64_t> literals_on; 
-    for ( auto var = 0u; var< numvars; var++){
-        if ( Cube.get_bit(var)) literals_on.emplace_back(var)
-    }
-}
-ON_constraint.emplace_back(literals_on) ; 
-for ( cube Cube : OFFset){
-    std :: vector<uint64_t> literals_off; 
-    for ( auto var = 0u; var< numvars; var++){
-        if (!Cube.get_mask(var) || (Cube.mask_bit(var) && Cube.get_bit(var))) literals_off.emplace_back(var)
-    }
-}
 ON_constraint.emplace_back(literals_off) ; 
             
             
