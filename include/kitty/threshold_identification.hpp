@@ -59,7 +59,7 @@
 
 namespace kitty
 {
-
+  // unate_in_var returns true if the function is unate in a single variable , false if not
  template<typename TT, typename = std::enable_if_t<is_complete_truth_table<TT>::value>>
  bool unate_in_var( TT& tt, uint8_t var ) 
 {
@@ -76,6 +76,7 @@ namespace kitty
         return false;
       }
 }
+// neg_unate_in_var returns true if the function is negative unate in a single variable , false if not
 template<typename TT, typename = std::enable_if_t<is_complete_truth_table<TT>::value>>
 bool neg_unate_in_var(const TT& tt, uint8_t var)
 { 
@@ -96,34 +97,41 @@ bool is_threshold( const TT& tt, std::vector<int64_t>* plf = nullptr )
 {
   uint8_t numvars = tt.num_vars();
   TT tt_copy = tt;  // tt_copy  will be built to be equal to the function  f*
+
+
   std::vector<int64_t> linear_form(numvars + 1, 0);
-  std::vector<bool> negative_unate(numvars, false);
-  // if (! unate(tt_copy) )return false; 
+  std::vector<bool> negative_unate(numvars, false); // a vector of booleans that will define the type of uunateness of the function for each variable.
+
   //  Check if the given function is unate 
   for ( uint8_t i(0); i < numvars; ++i )
   {
     if (! unate_in_var(tt_copy, i) )return false;
-    if ( neg_unate_in_var(tt,i)){
-      flip_inplace(tt_copy, i);
-      negative_unate[i] = true;
+
+
+    if ( neg_unate_in_var(tt,i))
+    {
+      negative_unate[i] = true;// This vector stores the original type of unateness  in each variable 
+
+      flip_inplace(tt_copy, i); // so as we obtain a positive unate function in all the variables.
+      
       
     }
   }
-  // Step 2 - Create conditions
-  // to speed up the ILP part, we can work on the irredundant SOP
-  // representations
+  //  if the function is unate: Create constraints
+  // to speed up the ILP part, we can work on the irredundant SOP representations.
+
 std:: vector<cube>   ONset (isop(tt_copy)); 
 std:: vector<cube>   OFFset (isop(~tt_copy)); 
 // the model is built row by row , so in the beginning we will start by creating a model with 0 rows and numvars + 1 columns
    auto lp = make_lp( 0, numvars + 1 );  // numvars+1= number of columns comprising the varables and threshold 
 
    set_verbose( lp, 1 );
-   
+
   std::vector<REAL> row(numvars + 2, 0);
-  row[numvars + 1] = -1; // threshold
-  REAL *rowp = &row[0]; // pointer to the objective function 
+  row[numvars + 1] = -1; // Threshold
+  REAL *Obj_fun = &row[0]; // pointer to the objective function :An array with 1+column (count for set_obj_fnex) elements that contains the values of the objective function.
 
-
+  // construct rows for ONset
   for ( auto &cube: ONset )
   {
     for ( auto i = 0u; i < numvars; ++i )
@@ -133,8 +141,10 @@ std:: vector<cube>   OFFset (isop(~tt_copy));
       else
         row[i + 1] = 0;
     }
-    add_constraint(lp, rowp, GE, 0);  
+    add_constraint(lp, Obj_fun, GE, 0);  
   }
+
+  // construct rows for OFFset
   for ( auto &cube: OFFset )
   {
     for ( auto i = 0u; i < numvars; ++i )
@@ -144,13 +154,17 @@ std:: vector<cube>   OFFset (isop(~tt_copy));
       else
         row[i + 1] = 0;
     }
-    add_constraint(lp, rowp, LE, -1);
+    add_constraint(lp, Obj_fun, LE, -1);
   }
+
+
   for ( auto i = 1u; i <= numvars + 1; ++i )
   {
     row[i] = 1;
   }
-  set_obj_fn( lp, rowp );
+  set_obj_fn( lp, Obj_fun ); 
+
+
 
 
   if ( solve( lp ) == INFEASIBLE )
@@ -160,19 +174,19 @@ std:: vector<cube>   OFFset (isop(~tt_copy));
 
   if ( plf )
   {
-    // REAL *sol;
+    // recuperate the solution for f*
     REAL *solution; 
     get_ptr_variables( lp, &solution );
+   // change the weights corresponding  to  the variables where the original function is negative unate . 
+    
+    for ( auto var = 0u; var < numvars + 1; ++var )
+       linear_form[var] = solution[var];
 
-
-    for ( auto i = 0u; i < numvars + 1; ++i )
-       linear_form[i] = solution[i];
-
-     for ( auto i = 0u; i < numvars; ++i )
+     for ( auto var = 0u; var < numvars; ++var )
       
-       if ( negative_unate[i] ) {
-         linear_form.back() -= linear_form[i];
-         linear_form[i] = -linear_form[i];
+       if ( negative_unate[var] ) {
+         linear_form.back() -= linear_form[var];
+         linear_form[var] = -linear_form[var];
        }
 
      plf->swap(linear_form);
@@ -189,5 +203,3 @@ std:: vector<cube>   OFFset (isop(~tt_copy));
   //write_lp(lp, "model.lp");
 }
 } /* namespace kitty */
-  
-
