@@ -50,6 +50,7 @@
 #pragma once
 #include "isop.hpp"
 #include "operations.hpp"
+#include "algorithm.hpp"
 #include <vector>
 #include <fstream>
 #include <iostream>
@@ -129,7 +130,7 @@ std:: vector<cube>   OFFset (isop(~tt_copy));
 
   std::vector<REAL> row(numvars + 2, 0);
   row[numvars + 1] = -1; // Threshold
-  REAL *Obj_fun = &row[0]; // pointer to the objective function :An array with 1+column (count for set_obj_fnex) elements that contains the values of the objective function.
+  REAL *Obj_fun = &row[0]; // pointer to the objective function :An array with 1+column elements that contains the values of the objective function.
 
   // construct rows for ONset
   for ( auto &cube: ONset )
