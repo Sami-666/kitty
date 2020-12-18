@@ -191,4 +191,3 @@ std:: vector<cube>   OFFset (isop(~tt_copy));
 } /* namespace kitty */
   
 
-} /* namespace kitty */
