@@ -30,15 +30,6 @@
   \author CS-472 2020 Fall students
 */
 
-#pragma once
-#include <isop.hpp>
-#include <vector>
-#include <lpsolve/lp_lib.h> /* uncomment this line to include lp_solve */
-#include "traits.hpp"
-
-namespace kitty
-{
-
 /*! \brief Threshold logic function identification
 
   Given a truth table, this function determines whether it is a threshold logic function (TF)
@@ -56,28 +47,148 @@ namespace kitty
   \return `true` if `tt` is a TF; `false` if `tt` is a non-TF.
 */
   
-/* checks hwhether the function is unate or not and when the function is negative unate in a variable return a function with only positive unates */
+#pragma once
+#include "isop.hpp"
+#include "operations.hpp"
+#include <vector>
+#include <fstream>
+#include <iostream>
+#include <lpsolve/lp_lib.h> /* uncomment this line to include lp_solve */
+#include "traits.hpp"
 
 
+namespace kitty
+{
 
-            
-            
+ template<typename TT, typename = std::enable_if_t<is_complete_truth_table<TT>::value>>
+ bool unate_in_var( TT& tt, uint8_t var ) 
+{
+  /*uint8_t numvars = tt.num_vars();*/
+    /* co-factor */
+    auto const tt1 = cofactor0( tt, var );
+    auto const tt2 = cofactor1( tt, var );
+      if ( binary_predicate( tt1, tt2, std::greater_equal<>()) || binary_predicate( tt1,tt2, std ::less_equal<>()) )
+      {
+         return true; 
+      }
+      else
+      {
+        return false;
+      }
+}
+template<typename TT, typename = std::enable_if_t<is_complete_truth_table<TT>::value>>
+bool neg_unate_in_var(const TT& tt, uint8_t var)
+{ 
+     /* co-factor */
+     auto const tt2 = cofactor0( tt, var );
+     auto const tt1 = cofactor1( tt, var );
+     if (binary_predicate( tt1,tt2, std ::less_equal<>() )){
+       return true; 
+
+   }
+   return false; 
+
+}
+
+
 template<typename TT, typename = std::enable_if_t<is_complete_truth_table<TT>::value>>
 bool is_threshold( const TT& tt, std::vector<int64_t>* plf = nullptr )
 {
-  std::vector<int64_t> linear_form;
+  uint8_t numvars = tt.num_vars();
+  TT tt_copy = tt;  // tt_copy  will be built to be equal to the function  f*
+  std::vector<int64_t> linear_form(numvars + 1, 0);
+  std::vector<bool> negative_unate(numvars, false);
+  // if (! unate(tt_copy) )return false; 
+  //  Check if the given function is unate 
+  for ( uint8_t i(0); i < numvars; ++i )
+  {
+    if (! unate_in_var(tt_copy, i) )return false;
+    if ( neg_unate_in_var(tt,i)){
+      flip_inplace(tt_copy, i);
+      negative_unate[i] = true;
+      
+    }
+  }
+  // Step 2 - Create conditions
+  // to speed up the ILP part, we can work on the irredundant SOP
+  // representations
+std:: vector<cube>   ONset (isop(tt_copy)); 
+std:: vector<cube>   OFFset (isop(~tt_copy)); 
+// the model is built row by row , so in the beginning we will start by creating a model with 0 rows and numvars + 1 columns
+   auto lp = make_lp( 0, numvars + 1 );  // numvars+1= number of columns comprising the varables and threshold 
 
-  /* TODO */
-  /* if tt is non-TF: */
-  return false;
+   set_verbose( lp, 1 );
+   
+  std::vector<REAL> row(numvars + 2, 0);
+  row[numvars + 1] = -1; // threshold
+  REAL *rowp = &row[0]; // pointer to the objective function 
 
-  /* if tt is TF: */
-  /* push the weight and threshold values into `linear_form` */
+
+  for ( auto &cube: ONset )
+  {
+    for ( auto i = 0u; i < numvars; ++i )
+    {
+      if ( cube.get_mask(i) && cube.get_bit(i) )
+        row[i + 1] = 1; // vector on which we will apply the ON_constraits 
+      else
+        row[i + 1] = 0;
+    }
+    add_constraint(lp, rowp, GE, 0);  
+  }
+  for ( auto &cube: OFFset )
+  {
+    for ( auto i = 0u; i < numvars; ++i )
+    {
+      if ( !cube.get_mask(i) || cube.get_bit(i) )
+        row[i + 1] = 1;
+      else
+        row[i + 1] = 0;
+    }
+    add_constraint(lp, rowp, LE, -1);
+  }
+  for ( auto i = 1u; i <= numvars + 1; ++i )
+  {
+    row[i] = 1;
+  }
+  set_obj_fn( lp, rowp );
+
+
+  if ( solve( lp ) == INFEASIBLE )
+    return false;
+
+
+
   if ( plf )
   {
-    *plf = linear_form;
-  }
+    // REAL *sol;
+    REAL *solution; 
+    get_ptr_variables( lp, &solution );
+
+
+    for ( auto i = 0u; i < numvars + 1; ++i )
+       linear_form[i] = solution[i];
+
+     for ( auto i = 0u; i < numvars; ++i )
+      
+       if ( negative_unate[i] ) {
+         linear_form.back() -= linear_form[i];
+         linear_form[i] = -linear_form[i];
+       }
+
+     plf->swap(linear_form);
+   
+   }
   return true;
+
+
+  if (lp != 0) {
+        /* clean up such that all used memory by lpsolve is freed */
+        delete_lp(lp);
+      }
+
+  //write_lp(lp, "model.lp");
 }
+} /* namespace kitty */
+  
 
 } /* namespace kitty */
